@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranked Score Tally</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --danger-color: #e74c3c;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --gold: #ffd700;
+            --silver: #c0c0c0;
+            --bronze: #cd7f32;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h1 { text-align: center; color: #333; margin-bottom: 25px; }
+
+        .leadership {color: rgb(255, 187, 0);}
+
+        .controls { display: flex; gap: 10px; margin-bottom: 30px; }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.9; }
+
+        .btn-add { background-color: var(--primary-color); color: white; padding: 12px 20px; }
+
+        .btn-reset-all {
+            width: 100%;
+            background-color: #f39c12;
+            color: white;
+            padding: 10px;
+            margin-top: 20px;
+        }
+
+        .score-list { display: flex; flex-direction: column; gap: 15px; }
+
+        .player-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid #ccc; /* Default border */
+            transition: transform 0.2s ease;
+        }
+
+        /* Rank Badge Styling */
+        .rank-badge {
+            font-size: 24px;
+            width: 40px;
+            text-align: center;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+
+        /* Top 3 Special Styles */
+        .rank-1 { border-left: 5px solid var(--gold); background: #fffbe6; transform: scale(1.02); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .rank-2 { border-left: 5px solid var(--silver); background: #fdfdfd; }
+        .rank-3 { border-left: 5px solid var(--bronze); background: #fffbf5; }
+
+        .player-info { flex-grow: 1; }
+        .player-name { font-size: 18px; font-weight: 600; margin: 0; color: #2c3e50; }
+        .score-display { font-size: 24px; font-weight: bold; margin: 5px 0 0 0; color: var(--primary-color); }
+
+        .actions { display: flex; align-items: center; gap: 8px; }
+
+        .btn-score {
+            width: 35px; height: 35px; font-size: 18px;
+            border-radius: 50%; color: white;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .btn-minus { background-color: #95a5a6; }
+        .btn-plus { background-color: #2ecc71; }
+        
+        .btn-delete {
+            background-color: transparent; color: var(--danger-color);
+            margin-left: 10px; padding: 5px; font-size: 14px;
+        }
+        
+        .empty-state { text-align: center; color: #999; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1 class="leadership"> 🏆 Leaderboard ng mga 
+            <br>Validation-Seeker</h1>
+        
+        <div class="controls">
+            <input type="text" id="playerNameInput" placeholder="Enter player name..." onkeypress="handleEnter(event)">
+            <button class="btn-add" onclick="addPlayer()">Add Player</button>
+        </div>
+
+        <div id="scoreList" class="score-list">
+            </div>
+
+        <button class="btn-reset-all" onclick="resetAllScores()">Reset All Scores</button>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const adminPassword = "1234"; 
+        const storageKey = "myScoreAppData";
+        // ---------------------
+
+        let players = [];
+
+        window.onload = function() {
+            const savedData = localStorage.getItem(storageKey);
+            if (savedData) {
+                players = JSON.parse(savedData);
+            }
+            renderPlayers();
+        };
+
+        const scoreList = document.getElementById('scoreList');
+        const nameInput = document.getElementById('playerNameInput');
+
+        function handleEnter(event) {
+            if (event.key === 'Enter') addPlayer();
+        }
+
+        function saveData() {
+            localStorage.setItem(storageKey, JSON.stringify(players));
+            renderPlayers(); 
+        }
+
+        function renderPlayers() {
+            scoreList.innerHTML = ""; 
+
+            // --- SORTING LOGIC ---
+            // Sort players from highest score (b) to lowest (a)
+            players.sort((a, b) => b.score - a.score);
+
+            if (players.length === 0) {
+                scoreList.innerHTML = '<div class="empty-state">No players added yet.</div>';
+                return;
+            }
+
+            players.forEach((player, index) => {
+                const playerCard = document.createElement('div');
+                
+                // Determine Rank Style and Icon
+                let rankClass = "";
+                let rankIcon = `#${index + 1}`;
+                
+                if (index === 0) { rankClass = "rank-1"; rankIcon = "🥇"; }
+                else if (index === 1) { rankClass = "rank-2"; rankIcon = "🥈"; }
+                else if (index === 2) { rankClass = "rank-3"; rankIcon = "🥉"; }
+
+                playerCard.className = `player-card ${rankClass}`;
+                
+                playerCard.innerHTML = `
+                    <div class="rank-badge">${rankIcon}</div>
+                    <div class="player-info">
+                        <p class="player-name">${player.name}</p>
+                        <p class="score-display">${player.score}</p>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-score btn-minus" onclick="modifyScore(${index}, -1)">-</button>
+                        <button class="btn-score btn-plus" onclick="modifyScore(${index}, 1)">+</button>
+                        <button class="btn-delete" onclick="deletePlayer(${index})">✕</button>
+                    </div>
+                `;
+                scoreList.appendChild(playerCard);
+            });
+        }
+
+        function addPlayer() {
+            const name = nameInput.value.trim();
+            if (name === "") {
+                alert("Please enter a name!");
+                return;
+            }
+            players.push({ name: name, score: 0 });
+            nameInput.value = "";
+            nameInput.focus();
+            saveData();
+        }
+
+        function modifyScore(index, change) {
+            let input = prompt("Enter Password to change score:");
+            if (input === adminPassword) {
+                players[index].score += change;
+                saveData(); // This will auto-sort because it calls renderPlayers()
+            } else {
+                alert("Incorrect Password!");
+            }
+        }
+
+        function deletePlayer(index) {
+            let input = prompt("Enter Password to delete player:");
+            if (input === adminPassword) {
+                players.splice(index, 1);
+                saveData();
+            } else {
+                alert("Incorrect Password!");
+            }
+        }
+
+        function resetAllScores() {
+            let input = prompt("Enter Password to RESET ALL:");
+            if (input === adminPassword) {
+                players.forEach(player => player.score = 0);
+                saveData();
+            } else {
+                alert("Incorrect Password!");
+            }
+        }
+    </script>
+</body>
+</html>
